@@ -63,25 +63,32 @@ void part1() {
 
 	printf("===== Question 1 =====\n");
 	char s1[] = "hello";
-	int s1_len;
+	int s1_len = sizeof(s1);
+	printf("%d \n", s1_len);
 
 	printf("===== Question 2 =====\n");
+	printf("%d \n", s1[0]);
 
 	printf("===== Question 3 (no code changes) =====\n");
+	printf("%d", 0x23);
 
 	printf("===== Question 4 (no code changes) =====\n");
 
 	printf("===== Question 5 =====\n");
 	char s2[10];
-	int s2_len;
+	int s2_len = sizeof(s2);
+	printf("%d \n", s2_len);
 
 	printf("===== Question 6 =====\n");
 	char *s3 = s1;
-	int s3_len;
+	int s3_len = sizeof(s3);
+	printf("%d \n", s3_len);
 
 	printf("===== Question 7 =====\n");
 	char *s4 = malloc(1024 * sizeof(char));
-	int s4_len;
+	int s4_len = sizeof(s4);
+	printf("%d \n", s4_len);
+	free(s4);
 
 	printf("===== Question 8 (no code changes) =====\n");
 
@@ -99,21 +106,32 @@ void part2() {
 
 	printf("===== Question 10 =====\n");
 
+	printf("%lu \n%lu \n%lu \n",(long unsigned int) &s1,(long unsigned int) &s2,(long unsigned int) &s3);
+
+
 	printf("===== Question 11 =====\n");
 
+	printf("%lu \n%lu \n%lu \n",(long unsigned int) &s1[0],(long unsigned int) &s2[0],(long unsigned int) &s3[0]);
+	
 	printf("===== Question 12 (no code changes) =====\n");
 
 	printf("===== Question 13 =====\n");
 
+	printf("%s \n%s \n%s \n", s1, s2, s3);
 	printf("===== Question 14 =====\n");
-
+	printf("%s \n", (s1 == s2) ? "s1 == s2" : "s1 != s2");
+	printf("%s \n", (s1 == s3) ? "s1 == s3" : "s1 != s3");
+	printf("%s \n", (s3 == s2) ? "s3 == s2" : "s3 != s2");
 	printf("===== Question 15 =====\n");
 
 	printf("===== Question 16 =====\n");
 	s1[1] = 'u';
+	printf("%s \n%s \n%s \n", s1, s2, s3);
 
 	printf("===== Question 17 =====\n");
-
+	printf("%s \n", (s1 == s2) ? "s1 == s2" : "s1 != s2");
+        printf("%s \n", (s1 == s3) ? "s1 == s3" : "s1 != s3");
+        printf("%s \n", (s3 == s2) ? "s3 == s2" : "s3 != s2");
 	printf("===== Question 18 =====\n");
 }
 
@@ -123,6 +141,9 @@ void part3() {
 	char s3[] = { 0x61, 0x62, 0x63, 0x64, 0x65, 0x66 };
 
 	printf("===== Question 19 =====\n");
+	 printf("%s \n", (memcmp(s1, s2, sizeof(s1)) == 0) ? "s1 == s2" : "s1 != s2");
+	 printf("%s \n", (memcmp(s1, s3, sizeof(s1)) == 0) ? "s1 == s3" : "s1 != s3");
+	 printf("%s \n", (memcmp(s3, s2, sizeof(s1)) == 0) ? "s3 == s2" : "s3 != s2");
 }
 
 void part4() {
@@ -130,9 +151,9 @@ void part4() {
 	char s2[] = { 'a', 'b', 'c', '\0', 'x', 'y', 'z', '\0' };
 
 	printf("===== Question 20 =====\n");
-
+	printf("%s \n", (memcmp(s1, s2, sizeof(s1)) == 0) ? "s1 == s2" : "s1 != s2");
 	printf("===== Question 21 =====\n");
-
+	 printf("%s \n", (strcmp(s1, s2) == 0) ? "s1 == s2" : "s1 != s2");
 	printf("===== Question 22 =====\n");
 	char s3[16];
 	char s4[16];
@@ -146,7 +167,6 @@ void part4() {
 	char *s5;
 	char *s6 = NULL;
 	char *s7 = s4;
-
 }
 
 void part5(char *filename) {
