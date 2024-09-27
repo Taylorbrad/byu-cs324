@@ -6,7 +6,7 @@ int main(int argc, char *argv[]) {
 	char *newenviron[] = { NULL };
 
 	printf("Program \"%s\" has pid %d. Sleeping.\n", argv[0], getpid());
-	sleep(30);
+	sleep(8);
 
 	if (argc <= 1) {
 		printf("No program to exec.  Exiting...\n");

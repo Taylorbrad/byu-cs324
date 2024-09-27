@@ -3,6 +3,7 @@
  * 
  * <Put your name and login ID here>
  */
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <fcntl.h>
 
 /* Misc manifest constants */
 #define MAXLINE    1024   /* max line size */
@@ -101,6 +103,51 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
+	char *argv[MAXARGS];
+	int cmds[MAXARGS];
+	int stdin_redir[MAXARGS];
+	int stdout_redir[MAXARGS];
+	bool isBuiltIn = false;
+
+	parseline(cmdline, argv);
+	parseargs(argv, cmds, stdin_redir, stdout_redir);
+	isBuiltIn = builtin_cmd(argv);
+
+	if (!isBuiltIn)
+	{
+		pid_t pid = fork();
+
+		if (pid == 0) //Child
+		{
+			if (stdin_redir[0] >= 0)
+			{
+				const int newFD = open(argv[stdin_redir[0]],O_RDONLY);
+				dup2(newFD, 0);
+
+				//perform redirection
+			}
+			if (stdout_redir[0] >= 0)
+			{
+				const int newFD = open(argv[stdout_redir[0]],O_WRONLY | O_CREAT | O_TRUNC, 0600);
+				dup2(newFD, 1);
+			}
+
+			execve(argv[0], argv, environ);
+
+			exit(0);
+		}
+		else //Parent
+		{
+			int *status = NULL;
+
+			setpgid(pid,pid);
+
+			wait(status);
+			// printf("parent\n");
+		}
+//		printf("execve()");
+		//execve();
+	}
 	return;
 }
 
@@ -228,6 +275,18 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+	//const char* QUIT = "quit";
+	//printf("%s", argv[0]);
+	//printf("%d", argv[0] == QUIT);
+	if (strcmp(argv[0], "quit") == 0)
+	{
+		//printf("%d", argv[0] == QUIT);
+		exit(0);
+	}
+	else
+	{
+		return 0;
+	}
 	return 0;     /* not a builtin command */
 }
 
