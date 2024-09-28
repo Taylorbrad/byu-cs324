@@ -3,7 +3,7 @@
  * 
  * <Put your name and login ID here>
  */
-#include <stdbool.h>
+// #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -107,47 +107,152 @@ void eval(char *cmdline)
 	int cmds[MAXARGS];
 	int stdin_redir[MAXARGS];
 	int stdout_redir[MAXARGS];
-	bool isBuiltIn = false;
+	// bool isBuiltIn = false;
+
+	// int processCount = 0;
 
 	parseline(cmdline, argv);
-	parseargs(argv, cmds, stdin_redir, stdout_redir);
-	isBuiltIn = builtin_cmd(argv);
+	int processCount = parseargs(argv, cmds, stdin_redir, stdout_redir);
+	builtin_cmd(argv);
 
-	if (!isBuiltIn)
-	{
-		pid_t pid = fork();
+	int pipes[processCount-1][2];
+	pid_t pids[processCount];
 
-		if (pid == 0) //Child
-		{
-			if (stdin_redir[0] >= 0)
-			{
-				const int newFD = open(argv[stdin_redir[0]],O_RDONLY);
-				dup2(newFD, 0);
-
-				//perform redirection
-			}
-			if (stdout_redir[0] >= 0)
-			{
-				const int newFD = open(argv[stdout_redir[0]],O_WRONLY | O_CREAT | O_TRUNC, 0600);
-				dup2(newFD, 1);
-			}
-
-			execve(argv[0], argv, environ);
-
-			exit(0);
+	for (int i = 0; i < processCount - 1; ++i) { //Create all necessary pipes
+		if (pipe(pipes[i]) == -1) {
+			printf("Pipe is bad");
 		}
-		else //Parent
-		{
-			int *status = NULL;
-
-			setpgid(pid,pid);
-
-			wait(status);
-			// printf("parent\n");
-		}
-//		printf("execve()");
-		//execve();
 	}
+
+	for (int i = 0; i < processCount; ++i) { //Main For loop
+		pids[i] = fork();
+
+		if (pids[i] != 0) {
+			setpgid(pids[i], pids[0]);
+		}
+
+		if (pids[i] == 0) { //Child
+
+			//I/O Redirection
+			if (stdin_redir[i] >= 0 && i == 0)
+			{
+				// printf("stdin redirect\n");
+				int newFD = open(argv[stdin_redir[i]],O_RDONLY);
+				dup2(newFD, 0);
+				close(newFD);
+			}
+			else {
+				dup2(pipes[i-1][0], 0);
+			}
+
+			if (stdout_redir[i] >= 0 && i == processCount - 1)
+			{
+				// printf("stdout redirect 0- %d 1- %d \n", stdout_redir[i], stdout_redir[1]);
+				const int newFD = open(argv[stdout_redir[i]],O_WRONLY | O_CREAT | O_TRUNC, 0600);
+				dup2(newFD, 1);
+				close(newFD);
+			}
+			else {
+				dup2(pipes[i][1], 1);
+			}
+			//Pipe handling
+
+			for (int y = 0; y < processCount-1; ++y) {
+				close(pipes[y][0]);
+				close(pipes[y][1]);
+			}
+
+			execve(argv[cmds[i]], &argv[cmds[i]], environ);
+			//execve
+		}
+
+	}
+
+	for (int i = 0; i < processCount-1; ++i) {
+		close(pipes[i][0]);
+		close(pipes[i][1]);
+	}
+
+	for (int i = 0; i < processCount; ++i) {
+		waitpid(pids[i], NULL, 0);
+	}
+
+//This is what I tried first for like 6 hours hahahahahahahahahahhaha
+// 		if (processCount > 1)
+// 		{
+// 			int returnCode = pipe(pipeFD);
+// 			printf("pipe creation: %d", returnCode);
+// 		}
+//
+// 		pid_t pid = fork();
+//
+//
+// 		if (pid != 0) //Parent
+// 		{
+// 			int *status = NULL;
+//
+// 			setpgid(pid, pid);
+//
+// 			wait(status);
+// 			// printf("parent\n");
+// 		}
+// 		else //Child
+// 		{
+// 			// printf("child cmds - %d\n", cmds[1]);
+// 			// setpgid(pid,pid);
+// 			if (stdin_redir[0] >= 0)
+// 			{
+// 				printf("stdin redirect\n");
+// 				const int newFD = open(argv[stdin_redir[0]],O_RDONLY);
+// 				dup2(newFD, 0);
+// 				close(newFD);
+//
+// 			}
+// 			if (stdout_redir[0] >= 0)
+// 			{
+// 				printf("stdout redirect 0- %d 1- %d \n", stdout_redir[0], stdout_redir[1]);
+// 				const int newFD = open(argv[stdout_redir[0]],O_WRONLY | O_CREAT | O_TRUNC, 0600);
+// 				dup2(newFD, 1);
+// 				close(newFD);
+// 			}
+//
+// 			if (processCount > 1) { //Will be for loop
+//
+// 				pid_t pgid = getpgid(getpid());
+//
+// 				pid = fork();
+//
+// 				if (pid != 0) { //'parent'
+// 					setpgid(pid, pgid);
+// 					// processCount++;
+// 					// printf("c%d\n", pipeFD[0]);
+// 					dup2(pipeFD[0], 0);
+//
+// 					int *status = NULL;
+// 					waitpid(pid, status, 0);
+// 				}
+// 				else { //child
+// 					// printf("pid - %d group - %d", getpid(), pgid);
+// 					setpgid(pid, pgid);
+// 					// printf("p%d\n", pipeFD[1]);
+// 					dup2(pipeFD[1], 1);
+//
+// 				}
+//
+// 				close(pipeFD[0]);
+// 				close(pipeFD[1]);
+//
+// 			}
+//
+// 			execve(argv[cmds[processCount - 1]], argv, environ);
+// 			// execve(argv[0], argv, environ);
+//
+// 			exit(0);
+// 		}
+//
+// //		printf("execve()");
+// 		//execve();
+
 	return;
 }
 
