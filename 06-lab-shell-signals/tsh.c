@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 	/* Install the signal handlers */
 
 	/* These are the ones you will need to implement */
-	Signal(SIGINT,  sigint_handler);   /* ctrl-c */
+//	Signal(SIGINT,  sigint_handler);   /* ctrl-c */
 	Signal(SIGTSTP, sigtstp_handler);  /* ctrl-z */
 	Signal(SIGCHLD, sigchld_handler);  /* Terminated or stopped child */
 
@@ -165,7 +165,50 @@ int main(int argc, char **argv)
 */
 void eval(char *cmdline) 
 {
-	return;
+	char *argv[MAXARGS];
+
+    int status = parseline(cmdline, argv);
+
+	builtin_cmd(argv);
+
+	sigset_t mask, oldmask;
+
+	sigemptyset(&mask);
+
+    sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGCHLD);
+	sigaddset(&mask, SIGTSTP);
+
+    sigprocmask(SIG_SETMASK, &mask, &oldmask);
+
+    pid_t pid = fork();
+
+    if (pid == 0) {
+    	sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+        if (execve(argv[0], &argv[0], environ) < 0) {
+        	if (errno == ENOENT) {
+                printf("%s: Command not found\n", argv[0]);
+            }
+            exit(1);
+        }
+        else {
+        	printf("exec Error");
+        }
+    }
+    else {
+        int statloc;
+        setpgid(pid, pid);
+        addjob(jobs, pid, status, cmdline);
+    	sigprocmask(SIG_SETMASK, &oldmask, NULL);
+
+        if (status == 0) {
+            waitpid(pid, &statloc, 0);
+        }
+        else {
+        	printf("job with pid %i running in background", pid);
+        }
+    }
 }
 
 /* 
@@ -231,6 +274,16 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+	if (strcmp(argv[0], "quit") == 0) {
+		exit(0);
+	}
+   	else if (strcmp(argv[0], "fg") == 0 || strcmp(argv[0], "bg") == 0) {
+		do_bgfg(argv);
+   	}
+    else if (strcmp(argv[0], "jobs") == 0) {
+    	    listjobs(jobs);
+    }
+
 	return 0;     /* not a builtin command */
 }
 
