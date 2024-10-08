@@ -183,31 +183,31 @@ void eval(char *cmdline)
 
     pid_t pid = fork();
 
-    if (pid == 0) {
+    if (pid > 0) { //Parent
+    	int statloc;
+    	setpgid(pid, pid);
+    	addjob(jobs, pid, status, cmdline);
     	sigprocmask(SIG_SETMASK, &oldmask, NULL);
 
-        if (execve(argv[0], &argv[0], environ) < 0) {
-        	if (errno == ENOENT) {
-                printf("%s: Command not found\n", argv[0]);
-            }
-            exit(1);
-        }
-        else {
-        	printf("exec Error");
-        }
+    	if (status == 0) {
+    		waitpid(pid, &statloc, 0);
+    	}
+    	else {
+    		printf("job with pid %i running in background", pid);
+    	}
     }
-    else {
-        int statloc;
-        setpgid(pid, pid);
-        addjob(jobs, pid, status, cmdline);
+    else { //Child
     	sigprocmask(SIG_SETMASK, &oldmask, NULL);
 
-        if (status == 0) {
-            waitpid(pid, &statloc, 0);
-        }
-        else {
-        	printf("job with pid %i running in background", pid);
-        }
+    	if (execve(argv[0], &argv[0], environ) < 0) {
+    		if (errno == ENOENT) {
+    			printf("%s: Command not found\n", argv[0]);
+    		}
+    		exit(1);
+    	}
+    	else {
+    		printf("exec Error");
+    	}
     }
 }
 
