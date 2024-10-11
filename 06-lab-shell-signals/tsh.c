@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 	/* Install the signal handlers */
 
 	/* These are the ones you will need to implement */
-//	Signal(SIGINT,  sigint_handler);   /* ctrl-c */
+	Signal(SIGINT,  sigint_handler);   /* ctrl-c */
 	Signal(SIGTSTP, sigtstp_handler);  /* ctrl-z */
 	Signal(SIGCHLD, sigchld_handler);  /* Terminated or stopped child */
 
@@ -169,7 +169,9 @@ void eval(char *cmdline)
 
     int status = parseline(cmdline, argv);
 
-	builtin_cmd(argv);
+	if (builtin_cmd(argv) == 1) {
+        return;
+    }
 
 	sigset_t mask, oldmask;
 
@@ -184,16 +186,18 @@ void eval(char *cmdline)
     pid_t pid = fork();
 
     if (pid > 0) { //Parent
-    	int statloc;
+//    	int statloc;
     	setpgid(pid, pid);
-    	addjob(jobs, pid, status, cmdline);
     	sigprocmask(SIG_SETMASK, &oldmask, NULL);
 
     	if (status == 0) {
-    		waitpid(pid, &statloc, 0);
+    		addjob(jobs, pid, FG, cmdline);
+//    		waitpid(pid, &statloc, 0);
+			waitfg(pid);
     	}
     	else {
-    		printf("job with pid %i running in background", pid);
+    		addjob(jobs, pid, BG, cmdline);
+    		printf("[%d] (%i) %s", pid2jid(pid), pid, cmdline);
     	}
     }
     else { //Child
@@ -202,8 +206,9 @@ void eval(char *cmdline)
     	if (execve(argv[0], &argv[0], environ) < 0) {
     		if (errno == ENOENT) {
     			printf("%s: Command not found\n", argv[0]);
+
+    			exit(0);
     		}
-    		exit(1);
     	}
     	else {
     		printf("exec Error");
@@ -274,14 +279,17 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+
 	if (strcmp(argv[0], "quit") == 0) {
 		exit(0);
 	}
    	else if (strcmp(argv[0], "fg") == 0 || strcmp(argv[0], "bg") == 0) {
 		do_bgfg(argv);
+   		return 1;
    	}
     else if (strcmp(argv[0], "jobs") == 0) {
-    	    listjobs(jobs);
+    	listjobs(jobs);
+    	return 1;
     }
 
 	return 0;     /* not a builtin command */
@@ -300,6 +308,9 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    while (fgpid(jobs) == pid) {
+        sleep(1);
+    }
 	return;
 }
 
@@ -316,6 +327,48 @@ void waitfg(pid_t pid)
  */
 void sigchld_handler(int sig) 
 {
+//    if (verbose) {
+//    	printf("sigchld_handler: entering\n");
+//    }
+
+    pid_t child_job_pid;
+    int stat_loc;
+
+	child_job_pid = waitpid(-1, &stat_loc, WUNTRACED | WNOHANG);
+//    printf("%d %d\n", child_job_pid, stat_loc);
+
+
+//	printf("stat %d\n", stat_loc);
+    while (child_job_pid > 0) {
+
+        if (stat_loc == 0) { //Terminate normally wifexited(statloc)
+//			printf("deleting");
+
+
+//            printf("job delete: %i\n",);
+        	deletejob(jobs, child_job_pid);
+        }
+    	if (stat_loc == 2) { // Cancelled ctrl-c wtermsig(statloc)
+    		int child_jid = pid2jid(child_job_pid);
+    		printf("Job [%d] (%d) terminated by signal %d\n", child_jid, fgpid(jobs), 2);
+//    		int child_jid = pid2jid(child_job_pid);
+//    		jobs[child_jid].state = ST;
+    		deletejob(jobs, child_job_pid);
+    	}
+    	if (stat_loc == 5247) { // Stopped ctrl-z wifstopped(statloc)
+
+    		int child_jid = pid2jid(child_job_pid);
+
+    		printf("Job [%d] (%d) stopped by signal %d\n", child_jid, fgpid(jobs), 20);
+
+    		jobs[child_jid-1].state = ST;
+//            jobs[].state = FG;
+//    		deletejob(jobs, child_job_pid);
+
+    	}
+    	child_job_pid = waitpid(-1, &stat_loc ,WUNTRACED | WNOHANG);
+    }
+//	printf("returned\n");
 	return;
 }
 
@@ -326,6 +379,12 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+//	if (kill(-pid, SIGTSTP) < 0)
+//		fprintf(stderr, "kill (tstp) error");
+
+	    if (verbose) {
+	    	printf("sigint_handler: entering\n");
+	    }
 	return;
 }
 
@@ -336,6 +395,9 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+	    if (verbose) {
+	    	printf("sigstp_handler: entering\n");
+	    }
 	return;
 }
 
