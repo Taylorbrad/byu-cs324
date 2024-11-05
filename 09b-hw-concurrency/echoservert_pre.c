@@ -95,7 +95,7 @@ void *handle_clients(void *vargp) {
 	pthread_detach(pthread_self());
 	while (1) {
 		int connfd = sbuf_remove(&sbuf); /* Remove connfd from buffer */
-		echo_cnt(connfd);                /* Service client */
+		echo_cnt(connfd);                /* Service client-udp */
 		close(connfd);
 	}
 }

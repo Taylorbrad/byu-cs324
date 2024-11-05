@@ -1,5 +1,5 @@
 /*
- * echo - read and echo text lines until client closes connection
+ * echo - read and echo text lines until client-udp closes connection
  */
 
 #include <stdio.h>

@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
-# slow-client.py - This is a client that makes an HTTP request very slowly, so
+# slow-client-udp.py - This is a client-udp that makes an HTTP request very slowly, so
 #                  it forces the proxy to read the request across multiple reads.
 #
-# usage: slow-client.py <proxy_url> <origin_url> <sleeptime> <timeout> <output>
+# usage: slow-client-udp.py <proxy_url> <origin_url> <sleeptime> <timeout> <output>
 #
 import argparse
 import signal

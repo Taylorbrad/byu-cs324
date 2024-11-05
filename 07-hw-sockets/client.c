@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 	// was passed in on the command line.
 	hints.ai_family = af;
 	// Use type SOCK_DGRAM (UDP)
-	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_socktype = SOCK_STREAM;
 
 
 	/* SECTION A - pre-socket setup; getaddrinfo() */
@@ -153,39 +153,74 @@ int main(int argc, char *argv[]) {
 
 	/* SECTION C - interact with server; send, receive, print messages */
 
+	int bytes_read = 0;
+	int tot_bytes_read = 0;
+	unsigned char input[4096];
+
+//    for ( tot_bytes_read < 4096; )
+    while (tot_bytes_read < 4096) {
+    	bytes_read = read(0, input + tot_bytes_read, 512);
+    	if (bytes_read <= 0) {
+    		break;
+    	}
+        tot_bytes_read += bytes_read;
+    }
+
+    int bytes_sent = 0;
+    int tot_bytes_sent = 0;
+//    int sent;
+	while (tot_bytes_sent < tot_bytes_read) {
+//		sent = send(sfd, );
+        bytes_sent = send(sfd, input + tot_bytes_sent, 1, 0);
+        tot_bytes_sent += bytes_sent;
+//        if (bytes_sent == 0) {
+//        	send(sfd, '\n', 512, 0);
+//		send();
+    }
+
+    unsigned char fromServer[16384];
+    int received = 1;
+    int receivedTotal = 0;
+
+    while (received != 0) {
+        received = recv(sfd, fromServer + receivedTotal, 512, 0);
+        receivedTotal += received;
+//        recv();
+    }
+    write(1, fromServer, receivedTotal);
+
 	// Send remaining command-line arguments as separate
 	// datagrams, and read responses from server.
-	for (int j = hostindex + 2; j < argc; j++) {
-		// buf will hold the bytes we read from the socket.
-		char buf[BUF_SIZE];
-
-		// len includes the count of all characters comprising the
-		// null-terminated string argv[j], but not the null byte
-		// itself.
-		size_t len = strlen(argv[j]);
-		if (len > BUF_SIZE) {
-			fprintf(stderr,
-					"Ignoring long message in argument %d\n", j);
-			continue;
-		}
-
-		ssize_t nwritten = send(sfd, argv[j], len, 0);
-		if (nwritten < 0) {
-			perror("send");
-			exit(EXIT_FAILURE);
-		}
-		printf("Sent %zd bytes: %s\n", len, argv[j]);
-
-		ssize_t nread = recv(sfd, buf, BUF_SIZE, 0);
-		buf[nread] = '\0';
-		if (nread < 0) {
-			perror("read");
-			exit(EXIT_FAILURE);
-		}
-
-		printf("Received %zd bytes: %s\n", nread, buf);
-
-	}
+//	for (int j = hostindex + 2; j < argc; j++) {
+//		// buf will hold the bytes we read from the socket.
+//		char buf[BUF_SIZE];
+//
+//		// len includes the count of all characters comprising the
+//		// null-terminated string argv[j], but not the null byte
+//		// itself.
+//		size_t len = strlen(argv[j]);
+//		if (len > BUF_SIZE) {
+//			fprintf(stderr,
+//					"Ignoring long message in argument %d\n", j);
+//			continue;
+//		}
+//
+//		ssize_t nwritten = send(sfd, argv[j], len, 0);
+//		if (nwritten < 0) {
+//			perror("send");
+//			exit(EXIT_FAILURE);
+//		}
+//		printf("Sent %zd bytes: %s\n", len, argv[j]);
+//
+////		ssize_t nread = recv(sfd, buf, BUF_SIZE, 0);
+////		buf[nread] = '\0';
+////		if (nread < 0) {
+////			perror("read");
+////			exit(EXIT_FAILURE);
+////		}
+////		printf("Received %zd bytes: %s\n", nread, buf);
+//
+//	}
 
 	exit(EXIT_SUCCESS);
 }

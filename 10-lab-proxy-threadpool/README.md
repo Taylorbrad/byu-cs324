@@ -355,10 +355,10 @@ curl -x http://localhost:port/ "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.
 curl -x http://localhost:port/ "http://localhost:5599/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -x http://localhost:port/ -b 1 "http://localhost:5599/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -x http://localhost:port/ -b 1 "http://localhost:5599/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 
 
@@ -459,10 +459,10 @@ curl -x http://localhost:port/ "http://www-notls.imaal.byu.edu:5599/cgi-bin/slow
 curl -x http://localhost:port/ "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -x http://localhost:port/ -b 1 "http://localhost:5599/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -x http://localhost:port/ -b 1 "http://localhost:5599/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 
 
@@ -527,7 +527,7 @@ lisening on localhost:5599.)
 curl -x http://localhost:port/ "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 
 
@@ -665,13 +665,13 @@ In another window on the same machine, run the following:
 curl -o tmp1 http://www-notls.imaal.byu.edu/index.html
 ```
 ```bash
-./slow-client.py -o tmp2 -b 1 http://www-notls.imaal.byu.edu/index.html
+./slow-client-udp.py -o tmp2 -b 1 http://www-notls.imaal.byu.edu/index.html
 ```
 ```bash
 curl -o tmp3 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -o tmp4 -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -o tmp4 -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
 curl -o tmp5 http://www-notls.imaal.byu.edu/images/imaal-80x80.png
@@ -689,13 +689,13 @@ Now run the following:
 curl -o tmp1p -x http://localhost:port/ http://www-notls.imaal.byu.edu/index.html
 ```
 ```bash
-./slow-client.py -o tmp2p -x http://localhost:port/ -b 1 http://www-notls.imaal.byu.edu/index.html
+./slow-client-udp.py -o tmp2p -x http://localhost:port/ -b 1 http://www-notls.imaal.byu.edu/index.html
 ```
 ```bash
 curl -o tmp3p -x http://localhost:port/ "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
-./slow-client.py -o tmp4p -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
+./slow-client-udp.py -o tmp4p -x http://localhost:port/ -b 1 "http://www-notls.imaal.byu.edu/cgi-bin/slowsend.cgi?obj=lyrics"
 ```
 ```bash
 curl -o tmp5p -x http://localhost:port/ http://www-notls.imaal.byu.edu/images/imaal-80x80.png
@@ -791,7 +791,7 @@ curl -o tmp3 http://localhost:port2/socket.jpg
 curl -o tmp4 "http://localhost:port2/cgi-bin/slow?sleep=1&size=4096"
 ```
 ```bash
-./slow-client.py -o tmp5 "http://localhost:port2/cgi-bin/slow?sleep=1&size=4096"
+./slow-client-udp.py -o tmp5 "http://localhost:port2/cgi-bin/slow?sleep=1&size=4096"
 ```
 
 Now run the following:
@@ -812,7 +812,7 @@ curl -o tmp3p -x http://localhost:port/ http://localhost:port2/socket.jpg
 curl -o tmp4p -x http://localhost:port/ "http://localhost:port2/cgi-bin/slow?sleep=1&size=4096"
 ```
 ```bash
-./slow-client.py -o tmp5p -x http://localhost:port/ "http://localhost:port2/cgi-bin/slow?sleep=1&size=4096"
+./slow-client-udp.py -o tmp5p -x http://localhost:port/ "http://localhost:port2/cgi-bin/slow?sleep=1&size=4096"
 ```
 
 Now use the `diff` command to see if there are any differences between the

@@ -132,7 +132,7 @@ In the right "local" pane, run the following:
 which the server program is now listening, respectively.)
 
 ```bash
-./client -4 hostname port foo bar abc123
+./client-udp -4 hostname port foo bar abc123
 ```
 
 The `-4` forces the client to prepare the socket to send messages to the
@@ -145,7 +145,7 @@ the best option.
 Now run the command a second time:
 
 ```bash
-./client -4 hostname port foo bar abc123
+./client-udp -4 hostname port foo bar abc123
 ```
 
  3. The server prints out the _remote_ address and port associated with the
@@ -370,8 +370,8 @@ Now run the following command twice:
 on which the server program is now listening, respectively.)
 
 ```bash
-./client -4 hostname port foo bar abc123
-./client -4 hostname port foo bar abc123
+./client -4 localhost 9583 foo bar abc123
+./client -4 localhost 9583 foo bar abc123
 ```
 
  16. The server prints out the _remote_ address and port associated with the
@@ -409,7 +409,7 @@ While the server is running on the remote host in the left "remote"
 pane), run the following in the right "local" pane:
 
 ```bash
-./client -4 hostname port foo bar abc123
+./client-udp -4 hostname port foo bar abc123
 ```
 
  19. *How many _total_ calls to `send()` were made by the client?* Hint: refer
@@ -455,7 +455,7 @@ Before you begin modifications, make a copy of the TCP version of your client
 program:
 
 ```bash
-cp client.c client-tcp.c
+cp client-udp.c client-udp-tcp.c
 ```
 
 Remove the code in `client.c` that loops through command-line arguments and
@@ -506,7 +506,7 @@ pane:
 which the `nc` program is now listening, respectively.)
 
 ```bash
-./client -4 hostname port < alpha.txt
+./client-udp -4 hostname port < alpha.txt
 ```
 
 Because the open file descriptor associated with `alpha.txt` will be duplicated
@@ -523,7 +523,7 @@ nc -l port | sha1sum
 Then re-run the client program:
 
 ```bash
-./client -4 hostname port < alpha.txt
+./client-udp -4 hostname port < alpha.txt
 ```
 
  24. *What is the output of the pipeline ending with `sha1sum`?*

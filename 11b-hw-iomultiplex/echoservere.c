@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 							remote_ip, remote_port);
 
 					/* UNCOMMENT FOR NONBLOCKING
-					// set client file descriptor nonblocking
+					// set client-udp file descriptor nonblocking
 					if (fcntl(connfd, F_SETFL, fcntl(connfd, F_GETFL, 0) | O_NONBLOCK) < 0) {
 						fprintf(stderr, "error setting socket option\n");
 						exit(1);
@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 
 					// allocate memory for a new struct
 					// client_info, and populate it with
-					// info for the new client
+					// info for the new client-udp
 					struct client_info *new_client =
 						(struct client_info *)malloc(sizeof(struct client_info));
 					new_client->fd = connfd;
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
 					sprintf(new_client->desc, "Client %s:%d (fd %d)",
 							remote_ip, remote_port, connfd);
 
-					// register the client file descriptor
+					// register the client-udp file descriptor
 					// for incoming events using
 					// edge-triggered monitoring
 					event.data.ptr = new_client;
@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 							// no more data to be read
 						} else {
 						*/
-							perror("client recv");
+							perror("client-udp recv");
 							close(active_client->fd);
 							free(active_client);
 						/* UNCOMMENT FOR NONBLOCKING
