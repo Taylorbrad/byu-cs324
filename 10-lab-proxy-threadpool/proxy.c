@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <pthread.h>
+#include <sys/semaphore.h>
 
 #include "sockhelper.h"
 
@@ -21,6 +22,23 @@ int open_sfd(char *);
 void handle_client(int);
 int create_modified_request(char *newRequest, char* method, char *hostname, char *port, char *path);
 void * threadFunction(void *);
+void producer_thread(int server_fd);
+void *consumer_thread(void *arg);
+void initialize_shared_buffer();
+
+const int THREAD_POOL_SIZE = 8;
+const int BUFFER_SIZE = 5;
+
+typedef struct {
+	int *buffer;
+	int in;
+	int out;
+	sem_t empty;
+	sem_t full;
+	pthread_mutex_t mutex;
+} shared_buffer_t;
+
+shared_buffer_t shared_buffer;
 
 int main(int argc, char *argv[])
 {
@@ -40,24 +58,97 @@ int main(int argc, char *argv[])
 
 
 	// printf("%s\n", newRequest);
-	pthread_t threads[8];  // Array to store thread identifiers
+	// pthread_t threads[8];  // Array to store thread identifiers
+
+
 	int curThread = 0;
 
 	while(1) {
 
 		int clientfd = accept(sfd, remote_addr, &addr_len);
 
-		if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
-			perror("pthread_create failed");
-			return 1;
+		// if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
+		// 	perror("pthread_create failed");
+		// 	return 1;
+		// }
+
+		// curThread++;
+
+		initialize_shared_buffer();
+
+		pthread_t consumer_threads[THREAD_POOL_SIZE];
+		for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+			pthread_create(&consumer_threads[i], NULL, consumer_thread, NULL);
 		}
 
-		curThread++;
+		producer_thread(sfd);
 
 		// handle_client((int)clientfd);
 	}
 
 	return 0;
+}
+
+// int main(int argc, char *argv[]) {
+// 	//    test_parser();
+// 	printf("%s\n", user_agent_hdr);
+//
+// 	int port = atoi(argv[1]);
+// 	int server_fd = open_sfd(port);
+//
+//
+//
+// 	return 0;
+// }
+
+void initialize_shared_buffer() {
+	shared_buffer.buffer = malloc(BUFFER_SIZE * sizeof(int));
+	shared_buffer.in = 0;
+	shared_buffer.out = 0;
+	sem_init(&shared_buffer.empty, 0, BUFFER_SIZE);
+	sem_init(&shared_buffer.full, 0, 0);
+	pthread_mutex_init(&shared_buffer.mutex, NULL);
+}
+
+void *consumer_thread(void *arg) {
+	while (1) {
+		int client_fd;
+
+		sem_wait(&shared_buffer.full);
+		pthread_mutex_lock(&shared_buffer.mutex);
+
+		client_fd = shared_buffer.buffer[shared_buffer.out];
+		shared_buffer.out = (shared_buffer.out + 1) % BUFFER_SIZE;
+
+		pthread_mutex_unlock(&shared_buffer.mutex);
+		sem_post(&shared_buffer.empty);
+
+		handle_client(client_fd);
+		close(client_fd);
+	}
+	return NULL;
+}
+
+void producer_thread(int server_fd) {
+	while (1) {
+		struct sockaddr_storage client_addr;
+		socklen_t client_len = sizeof(client_addr);
+
+		int client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_len);
+		if (client_fd < 0) {
+			perror("accept");
+			continue;
+		}
+
+		sem_wait(&shared_buffer.empty);
+		pthread_mutex_lock(&shared_buffer.mutex);
+
+		shared_buffer.buffer[shared_buffer.in] = client_fd;
+		shared_buffer.in = (shared_buffer.in + 1) % BUFFER_SIZE;
+
+		pthread_mutex_unlock(&shared_buffer.mutex);
+		sem_post(&shared_buffer.full);
+	}
 }
 
 void * threadFunction(void * clientfd) {
