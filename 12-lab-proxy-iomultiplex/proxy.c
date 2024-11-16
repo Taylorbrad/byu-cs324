@@ -24,7 +24,7 @@ int complete_request_received(char *request) {
 	return 0;
 }
 
-void parse_request(char *request, char *method,
+void parse_request(char *firstLine, char *method,
 		char *hostname, char *port, char *path) {
 }
 

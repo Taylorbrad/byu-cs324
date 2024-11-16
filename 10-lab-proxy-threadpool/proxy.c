@@ -1,4 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <pthread.h>
 
 #include "sockhelper.h"
 
@@ -11,21 +16,349 @@ int complete_request_received(char *);
 void parse_request(char *, char *, char *, char *, char *);
 void test_parser();
 void print_bytes(unsigned char *, int);
-
+// int open_sfd(char *, char *, struct sockaddr *, socklen_t);
+int open_sfd(char *);
+void handle_client(int);
+int create_modified_request(char *newRequest, char* method, char *hostname, char *port, char *path);
+void * threadFunction(void *);
 
 int main(int argc, char *argv[])
 {
-	test_parser();
-	printf("%s\n", user_agent_hdr);
+	char method[16], hostname[64], port[8], path[64];
+
+	// printf("%s\n", user_agent_hdr);
+	// test_parser();
+	// parse_request("GET http://www.example.com/index.html HTTP/1.0", method, hostname, port, path);
+	// printf("method: %s\nhostname: %s\nport: %s\npath: %s\n", method, hostname, port, path);
+
+	socklen_t addr_len;
+	struct sockaddr_storage remote_addr_ss;
+	struct sockaddr *remote_addr = (struct sockaddr *)&remote_addr_ss;
+
+	// int sfd = open_sfd("localhost", argv[1], remote_addr, addr_len);
+	int sfd = open_sfd(argv[1]);
+
+
+	// printf("%s\n", newRequest);
+	pthread_t threads[8];  // Array to store thread identifiers
+	int curThread = 0;
+
+	while(1) {
+
+		int clientfd = accept(sfd, remote_addr, &addr_len);
+
+		if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
+			perror("pthread_create failed");
+			return 1;
+		}
+
+		curThread++;
+
+		// handle_client((int)clientfd);
+	}
+
 	return 0;
+}
+
+void * threadFunction(void * clientfd) {
+	printf("%d", (int)clientfd);
+	pthread_detach(pthread_self());
+
+	handle_client((int)clientfd);
+	return 0;
+}
+
+void handle_client(int clientfd) {
+	char buf[1024];
+	char method[16], hostname[64], port[8], path[64];
+
+	// Read from socket until entire request is received
+	int bytesRead = 0;
+	int reads = 1;
+
+	// while (reads != 0) {
+	// 	reads = read(clientfd, buf + bytesRead, sizeof(buf) - 1 - bytesRead);
+	// 	bytesRead += reads;
+	// }
+
+
+	bytesRead = read(clientfd, buf, 1023);
+
+	// Print the request
+	// print_bytes(buf, bytesRead);
+
+	// Add null terminator and pass to parse_request
+	buf[bytesRead] = '\0';
+	parse_request(buf, method, hostname, port, path);
+
+	// Print out components of request
+	printf("method: %s\nhostname: %s\nport: %s\npath: %s\n", method, hostname, port, path);
+
+	char newRequest[1024];
+	int requestSize = create_modified_request(newRequest, method, hostname, port, path);
+	print_bytes(newRequest, requestSize);
+	// create_modified_request(newRequest, method, hostname, port, path);
+
+	struct addrinfo hints, *res;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET; // IPV4
+	hints.ai_socktype = SOCK_STREAM; // Use TCP
+
+	getaddrinfo(hostname, port, &hints, &res);
+
+	// Create socket for server conneciton
+	int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+	// Connect to server
+	if (connect(sock, res->ai_addr, res->ai_addrlen) < 0) {
+		perror("Connection failed");
+		freeaddrinfo(res); // Clean up
+		close(sock);
+		// return 1;
+	}
+	freeaddrinfo(res); // Free the address info
+	// close(clientfd);
+	send(sock, newRequest, requestSize, 0);
+
+	// Receive response
+	char response[16384];
+	int bytes_received = 0;
+	int received = 1;
+
+	while (received != 0) {
+		received = read(sock, response + bytes_received, sizeof(response) - 1 - bytes_received);
+		bytes_received += received;
+	}
+
+	if (bytes_received > 0) {
+		// response[bytes_received] = '\0'; // Null-terminate the response
+		print_bytes(response, bytes_received);
+	}
+
+	// Clean up
+	close(sock);
+
+
+	// Send response back to client and close connection
+	send(clientfd, response, bytes_received, 0);
+	close(clientfd);
+
+}
+
+int create_modified_request(char *newRequest, char* method, char *hostname, char *port, char *path) {
+	// char newRequest[1024];
+	int bytes_written = 0;
+
+	bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "%s %s HTTP/1.0\r\n", method, path);
+
+	if (strcmp(port, "80") == 0) {
+		bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "Host: %s\r\n", hostname, port);
+	}
+	else {
+		bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "Host: %s:%s\r\n", hostname, port);
+	}
+
+	bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0\r\nConnection: close\r\nProxy-Connection: close\r\n\r\n");
+
+	// newRequest[bytes_written] = '\0';
+	// printf("buf: %s", newRequest);
+	// return newRequest;
+	return bytes_written;
+}
+
+// int open_sfd(char *hostname, char *port, struct sockaddr *remote_addr, socklen_t addr_len) {
+int open_sfd(char *port) {
+	struct addrinfo hints;
+	struct addrinfo *result;
+
+	// Initialize everything to 0
+	memset(&hints, 0, sizeof(struct addrinfo));
+
+	hints.ai_family = AF_INET;
+	// Use type SOCK_DGRAM (UDP)
+	hints.ai_socktype = SOCK_STREAM;
+
+
+	// int s;
+
+	getaddrinfo(NULL, port, &hints, &result);
+
+	int addr_fam;
+	socklen_t addr_len; //**Moved to main
+
+
+	// char local_ip[INET6_ADDRSTRLEN];
+	// unsigned short local_port;
+
+	// See notes above for local_addr_ss and local_addr_ss.
+	struct sockaddr_storage remote_addr_ss; //**Moved to main
+	struct sockaddr *remote_addr = (struct sockaddr *)&remote_addr_ss; //**Moved to main
+	char remote_ip[INET6_ADDRSTRLEN];
+	unsigned short remote_port;
+
+
+	struct addrinfo *rp;
+	int sfd;
+
+	for (rp = result; rp != NULL; rp = rp->ai_next) {
+		// Loop through every entry in the linked list populated by
+		// getaddrinfo().   If socket(2) (or connect(2)) fails, we
+		// close the socket and try the next address.
+		//
+		// For each iteration of the loop, rp points to an instance of
+		// struct * addrinfo that contains the following members:
+		//
+		// ai_family: The address family for the given address. This is
+		//         either AF_INET (IPv4) or AF_INET6 (IPv6).
+		// ai_socktype: The type of socket.  This is either SOCK_DGRAM
+		//         or SOCK_STREAM.
+		// ai_addrlen: The length of the structure used to hold the
+		//         address (different for AF_INET and AF_INET6).
+		// ai_addr: The struct sockaddr_storage that holds the IPv4 or
+		//         IPv6 address and port.
+
+		if ((sfd = socket(rp->ai_family, rp->ai_socktype, 0)) < 0) {
+			perror("Error creating socket");
+			exit(EXIT_FAILURE);
+		}
+		// sfd = socket(rp->ai_family, rp->ai_socktype, 0);
+		if (sfd < 0) {
+			// error creating the socket
+			continue;
+		}
+
+		// addr_fam = rp->ai_family;
+		// addr_len = rp->ai_addrlen;
+		// Copy the value of rp->ai_addr to the struct sockaddr_storage
+		// pointed to by remote_addr.
+		// memcpy(remote_addr, rp->ai_addr, sizeof(struct sockaddr_storage));
+
+		// Extract the remote IP address and port from remote_addr
+		// using parse_sockaddr().  parse_sockaddr() is defined in
+		// ../code/sockhelper.c.
+		// parse_sockaddr(remote_addr, remote_ip, &remote_port);
+		// fprintf(stderr, "Connecting to %s:%d (addr family: %d)\n", remote_ip, remote_port, addr_fam);
+
+		// If connect() succeeds, then break out of the loop; we will
+		// use the current address as our remote address.
+		// if (connect(sfd, remote_addr, addr_len) >= 0)
+		// 	break;
+
+		// close(sfd);
+		// printf("socket: %d\n", sfd);
+		int optval = 1;
+		setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+
+		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) < 0) {
+			perror("Could not bind");
+			exit(EXIT_FAILURE);
+		}
+	}
+	listen(sfd, 100);
+
+	return sfd;
+	// int sfd = socket(rp->ai_family, rp->ai_socktype, 0);
 }
 
 int complete_request_received(char *request) {
+	// printf("%s", strstr(request, "\r\n\r\n"));
+
+	if (strstr(request, "\r\n\r\n") != NULL) {
+		return 1;
+	}
+
 	return 0;
 }
 
-void parse_request(char *request, char *method,
-		char *hostname, char *port, char *path) {
+void parse_request(char *request, char *method, char *hostname, char *port, char *path) {
+
+	long n, strBeginningOffset;
+
+	char firstLine[100];
+	char *search = strstr(request, "\n"); // Search for first space to get method
+	n = search - request;
+	strncpy(firstLine, request, n);
+	firstLine[n] = '\0';
+	// printf("firstline: %s", firstLine);
+
+	//get and set Method
+
+
+	// char *searchedString = strstr(request, " "); // Search for first space to get method
+	// n = searchedString - request;
+	// strncpy(method, request, n);
+	// method[n] = '\0';
+	char *searchedString = strstr(firstLine, " "); // Search for first space to get method
+	n = searchedString - firstLine;
+	strncpy(method, firstLine, n);
+	method[n] = '\0';
+
+	//get and set Hostname
+
+	// searchedString = strstr(request, "://"); // Search for :// to get beginning of hostname
+	// strBeginningOffset = searchedString - request + 3;
+	searchedString = strstr(firstLine, "://"); // Search for :// to get beginning of hostname
+	strBeginningOffset = searchedString - firstLine + 3;
+
+	// n = strstr(&request[strBeginningOffset], ":") - &request[strBeginningOffset];
+	// strncpy(hostname, &request[strBeginningOffset], n);
+	// hostname[n] = '\0';
+
+	//get and set port
+
+	// searchedString = strstr(&request[strBeginningOffset], ":"); // Search after the previous search for colon, to get port
+	searchedString = strstr(&firstLine[strBeginningOffset], ":"); // Search after the previous search for colon, to get port
+
+
+	// printf("\nsearch: %s\n", searchedString);
+
+	if (searchedString != NULL) {
+
+		//hostname
+		// n = strstr(&request[strBeginningOffset], ":") - &request[strBeginningOffset];
+		// strncpy(hostname, &request[strBeginningOffset], n);
+		// hostname[n] = '\0';
+		n = strstr(&firstLine[strBeginningOffset], ":") - &firstLine[strBeginningOffset];
+		strncpy(hostname, &firstLine[strBeginningOffset], n);
+		hostname[n] = '\0';
+
+		//port
+		// strBeginningOffset = searchedString - request + 1;
+		// n = strstr(&request[strBeginningOffset], "/") - &request[strBeginningOffset];
+		// strncpy(port, &request[strBeginningOffset], n);
+		strBeginningOffset = searchedString - firstLine + 1;
+		n = strstr(&firstLine[strBeginningOffset], "/") - &firstLine[strBeginningOffset];
+		strncpy(port, &firstLine[strBeginningOffset], n);
+
+		port[n] = '\0';
+	}
+	else {
+		//hostname
+		// n = strstr(&request[strBeginningOffset], "/") - &request[strBeginningOffset];
+		// strncpy(hostname, &request[strBeginningOffset], n);
+		// hostname[n] = '\0';
+		n = strstr(&firstLine[strBeginningOffset], "/") - &firstLine[strBeginningOffset];
+		strncpy(hostname, &firstLine[strBeginningOffset], n);
+		hostname[n] = '\0';
+
+		port[0] = '8';
+		port[1] = '0';
+		port[2] = '\0';
+	}
+
+	//get and set path
+
+	// searchedString = strstr(&request[strBeginningOffset], "/");
+	// strBeginningOffset = searchedString - request;
+	// n = strstr(&request[strBeginningOffset], " ") - &request[strBeginningOffset];
+	searchedString = strstr(&firstLine[strBeginningOffset], "/");
+	strBeginningOffset = searchedString - firstLine;
+	n = strstr(&firstLine[strBeginningOffset], " ") - &firstLine[strBeginningOffset];
+
+
+	strncpy(path, searchedString, n);
+	path[n] = '\0';
+	// printf("%s", path[strlen(path)]);
 }
 
 void test_parser() {
@@ -54,14 +387,14 @@ void test_parser() {
 	};
 	
 	for (i = 0; reqs[i] != NULL; i++) {
-		printf("Testing %s\n", reqs[i]);
+		printf("Testing \n%s\n", reqs[i]);
 		if (complete_request_received(reqs[i])) {
-			printf("REQUEST COMPLETE\n");
+			printf("REQUEST COMPLETE:\n");
 			parse_request(reqs[i], method, hostname, port, path);
 			printf("METHOD: %s\n", method);
 			printf("HOSTNAME: %s\n", hostname);
 			printf("PORT: %s\n", port);
-			printf("PATH: %s\n", path);
+			printf("PATH: %s\n\n", path);
 		} else {
 			printf("REQUEST INCOMPLETE\n");
 		}
