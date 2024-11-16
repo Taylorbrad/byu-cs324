@@ -18,12 +18,13 @@ void parse_request(char *, char *, char *, char *, char *);
 void test_parser();
 void print_bytes(unsigned char *, int);
 // int open_sfd(char *, char *, struct sockaddr *, socklen_t);
+
 int open_sfd(char *);
 void handle_client(int);
 int create_modified_request(char *newRequest, char* method, char *hostname, char *port, char *path);
 void * threadFunction(void *);
-void producer_thread(int server_fd);
-void *consumer_thread(void *arg);
+void producer_thread(int);
+void *consumer_thread(void *);
 void initialize_shared_buffer();
 
 const int THREAD_POOL_SIZE = 8;
@@ -42,8 +43,10 @@ shared_buffer_t shared_buffer;
 
 int main(int argc, char *argv[])
 {
-	char method[16], hostname[64], port[8], path[64];
+	// printf("main 1");
+	// char method[16], hostname[64], port[8], path[64];
 
+	// fflush(stdout);
 	// printf("%s\n", user_agent_hdr);
 	// test_parser();
 	// parse_request("GET http://www.example.com/index.html HTTP/1.0", method, hostname, port, path);
@@ -58,33 +61,37 @@ int main(int argc, char *argv[])
 
 
 	// printf("%s\n", newRequest);
-	// pthread_t threads[8];  // Array to store thread identifiers
+	pthread_t threads[8];  // Array to store thread identifiers
 
 
 	int curThread = 0;
 
 	while(1) {
-
 		int clientfd = accept(sfd, remote_addr, &addr_len);
 
-		// if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
-		// 	perror("pthread_create failed");
-		// 	return 1;
-		// }
-
-		// curThread++;
-
-		initialize_shared_buffer();
-
-		pthread_t consumer_threads[THREAD_POOL_SIZE];
-		for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-			pthread_create(&consumer_threads[i], NULL, consumer_thread, NULL);
+		if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
+			perror("pthread_create failed");
+			return 1;
 		}
+		curThread++;
+	}
 
-		producer_thread(sfd);
+	// Thread pool
+	// initialize_shared_buffer();
+	//  // printf("main");
+	//  	pthread_t consumer_threads[THREAD_POOL_SIZE];
+	//  	for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+	//  		printf("make %d", i);
+	//  		fflush(stdout);
+	//  		pthread_create(&consumer_threads[i], NULL, consumer_thread, NULL);
+	//  	}
+	//  	producer_thread(sfd);
+
+
+
 
 		// handle_client((int)clientfd);
-	}
+
 
 	return 0;
 }
@@ -130,6 +137,8 @@ void *consumer_thread(void *arg) {
 }
 
 void producer_thread(int server_fd) {
+	// printf("prod");
+	// fflush(stdout);
 	while (1) {
 		struct sockaddr_storage client_addr;
 		socklen_t client_len = sizeof(client_addr);
@@ -139,6 +148,8 @@ void producer_thread(int server_fd) {
 			perror("accept");
 			continue;
 		}
+		// printf("accept");
+		// fflush(stdout);
 
 		sem_wait(&shared_buffer.empty);
 		pthread_mutex_lock(&shared_buffer.mutex);
@@ -160,6 +171,8 @@ void * threadFunction(void * clientfd) {
 }
 
 void handle_client(int clientfd) {
+	// printf("handle");
+	// fflush(stdout);
 	char buf[1024];
 	char method[16], hostname[64], port[8], path[64];
 
@@ -188,6 +201,8 @@ void handle_client(int clientfd) {
 	char newRequest[1024];
 	int requestSize = create_modified_request(newRequest, method, hostname, port, path);
 	print_bytes(newRequest, requestSize);
+	// printf("print request");
+	// fflush(stdout);
 	// create_modified_request(newRequest, method, hostname, port, path);
 
 	struct addrinfo hints, *res;
