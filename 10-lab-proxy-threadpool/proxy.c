@@ -4,14 +4,14 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <pthread.h>
-#include <sys/semaphore.h>
+#include <semaphore.h>
 
 #include "sockhelper.h"
 
 /* Recommended max object size */
 #define MAX_OBJECT_SIZE 102400
 
-static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0";
+// static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0";
 
 int complete_request_received(char *);
 void parse_request(char *, char *, char *, char *, char *);
@@ -52,40 +52,46 @@ int main(int argc, char *argv[])
 	// parse_request("GET http://www.example.com/index.html HTTP/1.0", method, hostname, port, path);
 	// printf("method: %s\nhostname: %s\nport: %s\npath: %s\n", method, hostname, port, path);
 
-	socklen_t addr_len;
-	struct sockaddr_storage remote_addr_ss;
-	struct sockaddr *remote_addr = (struct sockaddr *)&remote_addr_ss;
+	// socklen_t addr_len;
+	// struct sockaddr_storage remote_addr_ss;
+	// struct sockaddr *remote_addr = (struct sockaddr *)&remote_addr_ss;
 
 	// int sfd = open_sfd("localhost", argv[1], remote_addr, addr_len);
 	int sfd = open_sfd(argv[1]);
 
 
 	// printf("%s\n", newRequest);
-	pthread_t threads[8];  // Array to store thread identifiers
+	// pthread_t threads[8];  // Array to store thread identifiers
 
 
-	int curThread = 0;
+	// int curThread = 0;
 
-	while(1) {
-		int clientfd = accept(sfd, remote_addr, &addr_len);
+	// while(1) {
+	// 	// Threaded
+	// 	// int clientfd = accept(sfd, remote_addr, &addr_len);
+	// 	//
+	// 	// if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
+	// 	// 	perror("pthread_create failed");
+	// 	// 	return 1;
+	// 	// }
+	// 	// curThread++;
+	//
+	// 	//Sequential
+	// 	// int clientfd = accept(sfd, remote_addr, &addr_len);
+	// 	// handle_client(clientfd);
+	// }
 
-		if (pthread_create(&threads[curThread], NULL, threadFunction, (void *)clientfd) != 0) {
-			perror("pthread_create failed");
-			return 1;
-		}
-		curThread++;
-	}
 
 	// Thread pool
-	// initialize_shared_buffer();
-	//  // printf("main");
-	//  	pthread_t consumer_threads[THREAD_POOL_SIZE];
-	//  	for (int i = 0; i < THREAD_POOL_SIZE; i++) {
-	//  		printf("make %d", i);
-	//  		fflush(stdout);
-	//  		pthread_create(&consumer_threads[i], NULL, consumer_thread, NULL);
-	//  	}
-	//  	producer_thread(sfd);
+	initialize_shared_buffer();
+	 // printf("main");
+	 	pthread_t consumer_threads[THREAD_POOL_SIZE];
+	 	for (int i = 0; i < THREAD_POOL_SIZE; i++) {
+	 		// printf("make %d", i);
+	 		fflush(stdout);
+	 		pthread_create(&consumer_threads[i], NULL, consumer_thread, NULL);
+	 	}
+	 	producer_thread(sfd);
 
 
 
@@ -162,23 +168,31 @@ void producer_thread(int server_fd) {
 	}
 }
 
-void * threadFunction(void * clientfd) {
+void * threadFunction(void * arg) {
+
+	int clientfd = *((int*) arg);
+
+	// free(arg);
+
 	printf("%d", (int)clientfd);
 	pthread_detach(pthread_self());
 
 	handle_client((int)clientfd);
+
+	close((int)clientfd);
 	return 0;
 }
 
 void handle_client(int clientfd) {
 	// printf("handle");
 	// fflush(stdout);
-	char buf[1024];
+	char buf[MAX_OBJECT_SIZE];
 	char method[16], hostname[64], port[8], path[64];
 
 	// Read from socket until entire request is received
+	// int total_bytes_read = 0;
 	int bytesRead = 0;
-	int reads = 1;
+	// int reads = 1;
 
 	// while (reads != 0) {
 	// 	reads = read(clientfd, buf + bytesRead, sizeof(buf) - 1 - bytesRead);
@@ -186,10 +200,31 @@ void handle_client(int clientfd) {
 	// }
 
 
+
+	//Old
 	bytesRead = read(clientfd, buf, 1023);
 
+	//New
+	// while (1) {
+	// 	bytesRead = read(clientfd, buf + total_bytes_read,
+	// 					  MAX_OBJECT_SIZE - total_bytes_read - 1);
+	// 	if (bytesRead <= 0) {
+	// 		if (bytesRead == 0) break;  // Connection closed
+	// 		perror("read");
+	// 		return;
+	// 	}
+	//
+	// 	total_bytes_read += bytesRead;
+	// 	buf[total_bytes_read] = '\0';
+	//
+	// 	if (strstr(buf, "\r\n\r\n")) {
+	// 		// Full request received
+	// 		break;
+	// 	}
+	// }
+
 	// Print the request
-	// print_bytes(buf, bytesRead);
+	print_bytes((unsigned char *)buf, bytesRead);
 
 	// Add null terminator and pass to parse_request
 	buf[bytesRead] = '\0';
@@ -198,9 +233,9 @@ void handle_client(int clientfd) {
 	// Print out components of request
 	printf("method: %s\nhostname: %s\nport: %s\npath: %s\n", method, hostname, port, path);
 
-	char newRequest[1024];
+	 char newRequest[1024];
 	int requestSize = create_modified_request(newRequest, method, hostname, port, path);
-	print_bytes(newRequest, requestSize);
+	print_bytes((unsigned char *)newRequest, requestSize);
 	// printf("print request");
 	// fflush(stdout);
 	// create_modified_request(newRequest, method, hostname, port, path);
@@ -227,7 +262,7 @@ void handle_client(int clientfd) {
 	send(sock, newRequest, requestSize, 0);
 
 	// Receive response
-	char response[16384];
+	unsigned char response[16384];
 	int bytes_received = 0;
 	int received = 1;
 
@@ -258,7 +293,7 @@ int create_modified_request(char *newRequest, char* method, char *hostname, char
 	bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "%s %s HTTP/1.0\r\n", method, path);
 
 	if (strcmp(port, "80") == 0) {
-		bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "Host: %s\r\n", hostname, port);
+		bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "Host: %s\r\n", hostname);
 	}
 	else {
 		bytes_written += snprintf(newRequest + bytes_written, 1024 - bytes_written, "Host: %s:%s\r\n", hostname, port);
@@ -289,22 +324,23 @@ int open_sfd(char *port) {
 
 	getaddrinfo(NULL, port, &hints, &result);
 
-	int addr_fam;
-	socklen_t addr_len; //**Moved to main
+	// int addr_fam;
+	// socklen_t addr_len; //**Moved to main
 
 
 	// char local_ip[INET6_ADDRSTRLEN];
 	// unsigned short local_port;
 
 	// See notes above for local_addr_ss and local_addr_ss.
-	struct sockaddr_storage remote_addr_ss; //**Moved to main
-	struct sockaddr *remote_addr = (struct sockaddr *)&remote_addr_ss; //**Moved to main
-	char remote_ip[INET6_ADDRSTRLEN];
-	unsigned short remote_port;
+	// struct sockaddr_storage remote_addr_ss; //**Moved to main
+	// struct sockaddr *remote_addr = (struct sockaddr *)&remote_addr_ss; //**Moved to main
+	// char remote_ip[INET6_ADDRSTRLEN];
+	// unsigned short remote_port;
 
 
 	struct addrinfo *rp;
-	int sfd;
+	int sfd = 1;
+
 
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		// Loop through every entry in the linked list populated by

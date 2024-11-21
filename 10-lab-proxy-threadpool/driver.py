@@ -25,7 +25,7 @@ class FailedCommand(Exception):
     pass
 
 CURRENT_DIR = '.'
-SLOW_CLIENT = os.path.join(CURRENT_DIR, 'slow-client-udp.py')
+SLOW_CLIENT = os.path.join(CURRENT_DIR, 'slow-client.py')
 NOP_SERVER = os.path.join(CURRENT_DIR, 'nop-server.py')
 PROXY = os.path.join(CURRENT_DIR, 'proxy')
 WWW_DIR = os.path.join(CURRENT_DIR, 'www')
