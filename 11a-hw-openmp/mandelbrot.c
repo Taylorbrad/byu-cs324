@@ -102,8 +102,6 @@ int main(int argc, char* argv[])
     }
   }
 
-  end = omp_get_wtime();
-  printf("Time: %f", end-start);
 
   for (j = 0; j < yres; j++) {
     for(i = 0; i < xres; i++) {
@@ -129,5 +127,10 @@ int main(int argc, char* argv[])
   }
   fclose(fp);
   free(saved);
+
+  end = omp_get_wtime();
+  printf("Time: %f\n", end-start);
+
   return 0;
+
 }
